@@ -107,7 +107,7 @@ public struct StaticImageSource: ImageSourceType {
 
   public init(source: UIImage) {
 
-    let image = CIImage(image: source)!
+    let image = source.ciImage ?? CIImage(image: source)!
     let fixedOriantationImage = image.oriented(forExifOrientation: imageOrientationToTiffOrientation(source.imageOrientation))
 
     self.init(source: fixedOriantationImage)
