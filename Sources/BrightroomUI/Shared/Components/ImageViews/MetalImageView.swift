@@ -21,6 +21,7 @@
 
 import MetalKit
 import UIKit
+import MetalPerformanceShaders
 
 #if !COCOAPODS
   import BrightroomEngine
@@ -34,14 +35,14 @@ open class MetalImageView: MTKView, CIImageDisplaying, MTKViewDelegate {
     }
   }
 
-  private let defaultColorSpace = CGColorSpaceCreateDeviceRGB()
-  private var image: CIImage?
+  let defaultColorSpace = CGColorSpaceCreateDeviceRGB()
+  var image: CIImage?
 
-  private lazy var commandQueue: MTLCommandQueue = { [unowned self] in
+  lazy var commandQueue: MTLCommandQueue = { [unowned self] in
     self.device!.makeCommandQueue()!
   }()
 
-  private lazy var ciContext: CIContext = {
+  lazy var ciContext: CIContext = {
     [unowned self] in
     CIContext(mtlDevice: self.device!)
   }()
@@ -228,5 +229,78 @@ extension CIImage {
     let outputImage = resizeFilter.outputImage
 
     return outputImage!
+  }
+}
+
+
+final class BlurMetalImageView: MetalImageView {
+  override func renderImage() {
+    guard
+      let image = image,
+      let targetTexture = currentDrawable?.texture,
+      let commandBuffer = commandQueue.makeCommandBuffer(),
+      let renderPassDescriptor = currentRenderPassDescriptor,
+      let drawable = currentDrawable
+    else {
+      return
+    }
+
+    EditorLog.debug(.imageView, "[MetalImageView] Render")
+
+#if DEBUG
+    //    if image.cgImage != nil {
+    //      EditorLog.debug("[MetalImageView] the backing storage of the image is in CPU, Render by metal might be slow.")
+    //    }
+#endif
+
+    let bounds = CGRect(
+      origin: .zero,
+      size: drawableSize
+    )
+
+    let fixedImage = image.removingExtentOffset()
+
+    let resolvedImage = downsample(image: fixedImage, bounds: bounds, contentMode: contentMode)
+
+    let processedImage = postProcessing(resolvedImage)
+
+  clearContents: do {
+
+    //      renderPassDescriptor.colorAttachments[0].texture = drawable.texture
+    renderPassDescriptor.colorAttachments[0].clearColor = .init(red: 0, green: 0, blue: 0, alpha: 0)
+    renderPassDescriptor.colorAttachments[0].loadAction = .clear
+    renderPassDescriptor.colorAttachments[0].storeAction = .store
+
+    let commandEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor)!
+    commandEncoder.endEncoding()
+  }
+
+    func radius(_ imageExtent: CGRect) -> Double {
+      let v = Double(sqrt(pow(imageExtent.width, 2) + pow(imageExtent.height, 2)))
+      return v / 20 // ?
+    }
+
+    // let min: Double = 0
+    let max: Double = 100
+    let value: Double = 40
+    let filter = MPSImageGaussianBlur(device: self.device!, sigma: Float(radius(image.extent) * value / max))
+
+    EditorLog.debug(.imageView, "ColorSpace => \(processedImage.colorSpace as Any)")
+
+    ciContext.render(
+      processedImage,
+      to: targetTexture,
+      commandBuffer: commandBuffer,
+      bounds: bounds,
+      colorSpace: processedImage.colorSpace ?? defaultColorSpace
+    )
+
+    commandBuffer.present(drawable)
+    commandBuffer.commit()
+  }
+
+
+  public required init(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
   }
 }

@@ -118,8 +118,7 @@ public final class BlurryMaskingView: PixelEditorCodeBasedView, UIScrollViewDele
   
   private let backdropImageView = _ImageView()
   
-  private let blurryImageView = _ImageView()
-  
+  private let blurryImageView = FastBlurImageView()
   private let drawingView = SmoothPathDrawingView()
   
   private let canvasView = CanvasView()
@@ -161,7 +160,8 @@ public final class BlurryMaskingView: PixelEditorCodeBasedView, UIScrollViewDele
       scrollView.isScrollEnabled = false
       
       scrollView.addSubview(containerView)
-      
+
+
       containerView.addContent(backdropImageView)
       containerView.addContent(blurryImageView)
       containerView.addContent(canvasView)
@@ -305,8 +305,15 @@ public final class BlurryMaskingView: PixelEditorCodeBasedView, UIScrollViewDele
             
             state.ifChanged(\.editingPreviewImage) { image in
               self.backdropImageView.display(image: image)
-              self.blurryImageView.display(image: BlurredMask.blur(image: image))
+              self.blurryImageView.image = image
+
+              let date = Date()
+            //  self.blurryImageView2.display(image: BlurredMask.blur(image: image))
+              let end = date.timeIntervalSinceNow
+              print("Made accurate render in \(end)")
             }
+
+
             
             state.ifChanged(\.currentEdit.drawings.blurredMaskPaths) { paths in
               self.canvasView.setResolvedDrawnPaths(paths)

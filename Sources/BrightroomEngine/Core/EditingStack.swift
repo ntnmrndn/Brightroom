@@ -621,7 +621,7 @@ open class EditingStack: Hashable, StoreComponentType {
 /// TODO: As possible, creates CIImage from MTLTexture
 /// 16bits image can't be MTLTexture with MTKTextureLoader.
 /// https://stackoverflow.com/questions/54710592/cant-load-large-jpeg-into-a-mtltexture-with-mtktextureloader
-private func makeMTLTexture(from cgImage: CGImage, device: MTLDevice) throws -> MTLTexture {
+internal func makeMTLTexture(from cgImage: CGImage, device: MTLDevice) throws -> MTLTexture {
 
   #if true
     let loader = MTKTextureLoader(device: device)
